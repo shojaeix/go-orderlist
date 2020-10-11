@@ -1,11 +1,11 @@
 # About
-This package will help you to keep your bids/asks list.
+This package will help you to keep your bids/asks list with minimum memory usage and fast speed.
  
-This is dynamic-resizing mechanism and n(1) time complexity in most of operations.
+This package supports dynamic-resizing mechanism and have n(1) time complexity in most operations.
 
 
 # How to use
-After importing the package, you should create a new `OrderList`.
+After importing the package, you should create a new variable with type `OrderList`.
 
 Then you can use below functions to work on your list
 - add/delete/update order
@@ -14,7 +14,6 @@ Then you can use below functions to work on your list
 - get lowest/highest price and order
 - get total number and volume of orders
 
-
 ## Examples
 
 #### import the package
@@ -22,12 +21,15 @@ Then you can use below functions to work on your list
 import "github.com/shojaeix/go-order-list/order-list
 ````
 
-#### Create new list
+#### Create a new list
 ````go
 bidsList := olist.OrderList{}
+````
+#### Set list's sort
+````go
 bidsList.setSort("lowest") // lower bid must come first
 ````
-#### Create new order
+#### Create a new order
 ````go
 newOrder := olist.Order{
    "price": 4302.23,
