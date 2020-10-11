@@ -5,51 +5,87 @@ import (
 	"fmt"
 )
 
+const listsIncrementStep = 10000
+
+
 type OrderList struct {
-	plusPointer                 *[]*[]Order
-	negativePointer             *[]*[]Order
-	indexDispute                int // price + indexDispute = index
+	positiveList                *[]*[]Order
+	negativeList                *[]*[]Order
+	indexDispute                int // price - indexDispute = index
 	greatestIndex               int
-	smallestIndex				int
-	newOrdersChannel            *chan Order
-	newOrdersFlagUpdaterChannel *chan Order
+	smallestIndex               int
+	newOrdersChannel            *chan *Order
+	newOrdersFlagUpdaterChannel *chan *Order
 	ordersById                  []*Order
 	ordersLastId                uint
+	running                     bool
 }
 
-type orderArray []Order
+func (ol *OrderList) run() {
 
-func (ol *OrderList) Run() {
+	ol.initiate()
+
 	// go process new orders
+	go ol.processNewOrders()
+
 	// go update flags after adding new order
+
+	// set a boolean flag after run
+	ol.running = true
 }
+func (ol *OrderList) processNewOrders(){
+	// get new orders from channel
+	for order := range *ol.newOrdersChannel {
+		// process
+		ol.pushOrderToArray(order)
+	}
+}
+
+// Add an order to list and associate an unique uint ID
+// return id, error
 func (ol *OrderList) AddOrder(order Order) (uint, error) {
-	// validate values
+	// run
+	if !ol.running {
+		ol.run()
+	}
+
+	// validate the order's values
 	if !ol.validateOrderValues(&order) {
-		return 0, errors.New("Order's values are invalid.")
+		return 0, errors.New("the order's values are invalid")
 	}
 
 	// store order and set an ID
-	ol.accociateIdToOrder(&order)
+	ol.associateIdToOrder(&order)
 
-	// send order to NewOrdersChannel
-	go ol.pushOrderToArray(&order)
-	
+	// send order to NewOrdersChannel to process
+	*ol.newOrdersChannel <- &order
+
 	// return ID
 	return order.id, nil
 }
 
+// check order's price & volume to be positive number
 func (ol *OrderList) validateOrderValues (order *Order) bool {
 	return order.Price > 0 && order.Volume > 0;
 }
 
-func (ol *OrderList) accociateIdToOrder(order *Order){
+func (ol *OrderList) associateIdToOrder(order *Order){
 	// associate an ID  to order
 	ol.ordersById = append(ol.ordersById, order)
 	ol.ordersLastId++
 	order.id = ol.ordersLastId
 }
-func (ol *OrderList) initiateArrays(indexDispute int){
+
+func (ol *OrderList) initiate(){
+
+	// make new orders channel
+	newOrdersChannel := make(chan *Order, 10000)
+	ol.newOrdersChannel = &newOrdersChannel
+
+
+	// make new orders' flags channel
+	newOrdersFlagUpdaterChannel := make(chan *Order, 10000)
+	ol.newOrdersFlagUpdaterChannel = &newOrdersFlagUpdaterChannel
 
 	// make ordersById array
 	if ol.ordersById == nil {
@@ -57,67 +93,72 @@ func (ol *OrderList) initiateArrays(indexDispute int){
 		ol.ordersLastId = 0
 	}
 
-	// positive list
-	if ol.plusPointer == nil {
+	// set initial value for dispute
+	ol.indexDispute = -1
+
+	// make the positive list
+	if ol.positiveList == nil {
 		list := make([]*[]Order, 100)
-		ol.plusPointer = &list
-		ol.indexDispute = indexDispute
+		ol.positiveList = &list
 		ol.greatestIndex = 99
 	}
 
-	// negative list
-	if ol.negativePointer == nil {
+	// make the negative list
+	if ol.negativeList == nil {
 		list := make([]*[]Order, 100)
-		ol.negativePointer = &list
+		ol.negativeList = &list
 		ol.smallestIndex = 99
 	}
 }
 func (ol *OrderList) pushOrderToArray(order *Order){
 
-	ol.initiateArrays(order.Price)
-
+	// set dispute if it has not been set before
+	if ol.indexDispute == -1 {
+		ol.indexDispute = order.Price
+	}
 
 	//
 	index := order.Price - ol.indexDispute
-	const incrementStep = 1000
 
+	if index >= 0 { // positive indices
 
-	if index >= 0 { // positive
-
-		// increase list size if necessary
+		// increase positiveList size if necessary
 		if index > ol.greatestIndex {
-			newList := make([]*[]Order, index+incrementStep)
-			ol.greatestIndex = index + incrementStep - 1
-			copy(newList, *ol.plusPointer)
-			ol.plusPointer = &newList
+			newList := make([]*[]Order, index+listsIncrementStep)
+			ol.greatestIndex = index + listsIncrementStep - 1
+			copy(newList, *ol.positiveList)
+			ol.positiveList = &newList
 		}
 
-		list := *ol.plusPointer
-		// fill list[index] if necessary
-		if list[index] == nil {
-			var orderArr []Order = make([]Order, incrementStep)
-			list[index] = &orderArr
+		positiveList := *ol.positiveList
+
+		// fill positiveList[index] if necessary
+		if positiveList[index] == nil {
+			var ordersArr = make([]Order, listsIncrementStep)
+			positiveList[index] = &ordersArr
 		}
 
 		// append order
-		indexOrderList := append(*list[index], *order)
-		list[index] = &indexOrderList
-	} else { // negative
+		indexOrderList := append(*positiveList[index], *order)
+		positiveList[index] = &indexOrderList
 
+	} else { // negative indices
+
+		// absolute the index, for saving in array
 		absoluteIndex := index * -1
 
 		// increase list size if necessary
 		if absoluteIndex > ol.smallestIndex {
-			newList := make([]*[]Order, absoluteIndex+incrementStep)
-			ol.smallestIndex = absoluteIndex + incrementStep - 1
-			copy(newList, *ol.negativePointer)
-			ol.negativePointer = &newList
+			newList := make([]*[]Order, absoluteIndex+listsIncrementStep)
+			ol.smallestIndex = absoluteIndex + listsIncrementStep - 1
+			copy(newList, *ol.negativeList)
+			ol.negativeList = &newList
 		}
 
-		list := *ol.negativePointer
+		list := *ol.negativeList
 		// fill list[index] if necessary
 		if list[absoluteIndex - 1] == nil {
-			var orderArr = make([]Order, incrementStep)
+			var orderArr = make([]Order, listsIncrementStep)
 			list[absoluteIndex - 1] = &orderArr
 		}
 
@@ -130,24 +171,21 @@ func (ol *OrderList) pushOrderToArray(order *Order){
 
 func (ol *OrderList) DeleteOrder(id uint) bool {
 
-	if id > ol.ordersLastId {
-		println("id is bigger than last id")
+	if id > ol.ordersLastId { // couldn't be exist
 		return false
 	}
 
-	if ol.ordersById[id-1] == nil {
-		fmt.Printf("Ids length: %d\n", len(ol.ordersById))
-		panic("id is nil")
+	if ol.ordersById[id-1] == nil { // not exists
 		return false
 	}
 
+	// get order info
 	order := *ol.ordersById[id-1]
-	println("plusPointer: ", order.id)
 
 	// search in main list
 	index := order.Price - ol.indexDispute
 
-	orderArr := (*ol.plusPointer)[index]
+	orderArr := (*ol.positiveList)[index]
 
 	for key, value := range *orderArr {
 		if value.id == order.id {
@@ -158,19 +196,20 @@ func (ol *OrderList) DeleteOrder(id uint) bool {
 		}
 	}
 
+	panic("order not found in orders list")
 	return false
 }
 
 func (ol *OrderList) PrintAll(printOrders bool) {
 
 	fmt.Printf("Ids length: %d, capacity: %d\n", len(ol.ordersById), cap(ol.ordersById))
-	if ol.plusPointer != nil {
+	if ol.positiveList != nil {
 
 
 		lenLvl2 := 0
 		capLvl2 := 0
 
-			for index, orderArr := range *ol.plusPointer {
+			for index, orderArr := range *ol.positiveList {
 				if printOrders {
 					fmt.Printf("Index: %d, The price: %d\n", index, index+ol.indexDispute)
 				}
@@ -187,16 +226,16 @@ func (ol *OrderList) PrintAll(printOrders bool) {
 				}
 
 		}
-		fmt.Printf("Positive Length: %d, Capacity %d Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.plusPointer), cap(*ol.plusPointer), lenLvl2, capLvl2)
+		fmt.Printf("Positive Length: %d, Capacity %d Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.positiveList), cap(*ol.positiveList), lenLvl2, capLvl2)
 
 	}
 
-	if ol.negativePointer != nil {
+	if ol.negativeList != nil {
 
 		lenLvl2 := 0
 		capLvl2 := 0
 
-		for index, orderArr := range *ol.negativePointer {
+		for index, orderArr := range *ol.negativeList {
 			if printOrders {
 				fmt.Printf("Index: %d, The price: %d\n", index, index+ol.indexDispute-1)
 			}
@@ -213,7 +252,7 @@ func (ol *OrderList) PrintAll(printOrders bool) {
 			}
 		}
 
-		fmt.Printf("Negative Length: %d, Capacity %d  Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.negativePointer), cap(*ol.negativePointer), lenLvl2, capLvl2)
+		fmt.Printf("Negative Length: %d, Capacity %d  Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.negativeList), cap(*ol.negativeList), lenLvl2, capLvl2)
 	}
 }
 
