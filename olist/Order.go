@@ -1,7 +1,7 @@
 package olist
 
 type Order struct {
-	id     uint
-	Price  int // TODO convert to flaot
-	Volume int
+	id     uint64
+	Price  int32 // TODO convert to float
+	Volume int32
 }
