@@ -95,9 +95,6 @@ func (ol *OrderList) initiate() {
 		ol.ordersLastId = 0
 	}
 
-	// set initial value for dispute
-	//ol.indexDispute = 0
-
 	// make the positive list
 	if ol.positiveList == nil {
 		list := make([]*[]Order, 100)
@@ -121,7 +118,6 @@ func (ol *OrderList) pushOrderToArray(order *Order) {
 
 	//
 	index := order.Price - ol.indexDispute
-
 
 	if index >= 0 { // positive indices
 
@@ -159,6 +155,7 @@ func (ol *OrderList) pushOrderToArray(order *Order) {
 		}
 
 		list := *ol.negativeList
+
 		// fill list[index] if necessary
 		if list[absoluteIndex-1] == nil {
 			var orderArr = make([]Order, listsIncrementStep)
