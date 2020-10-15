@@ -70,3 +70,7 @@ bidsList.UpdateOrder(orderId, newPrice, newVolume)
 bidsList.DeleteOrder(orderId)
 ````
  
+## TODO
+- Return callback chan in result of the AddOrder() func
+- Test
+- Implement the GetRowAndAheadVolume() func
