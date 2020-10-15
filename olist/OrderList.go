@@ -21,6 +21,12 @@ type OrderList struct {
 	ordersById                  []*Order
 	ordersLastId                uint64
 	running                     bool
+	flags						orderListFlags
+}
+
+type orderListFlags struct {
+	lowestPrice 		int32
+	highestPrice		int32
 }
 
 func (ol *OrderList) run() {
@@ -31,6 +37,7 @@ func (ol *OrderList) run() {
 	go ol.processNewOrders()
 
 	// go update flags after adding new order
+	go ol.updateFlagsAfterOrderAdd()
 
 	// set a boolean flag after run
 	ol.running = true
@@ -41,6 +48,7 @@ func (ol *OrderList) processNewOrders() {
 	for order := range *ol.newOrdersChannel {
 		// process
 		ol.pushOrderToArray(order)
+		*ol.newOrdersFlagUpdaterChannel <- order
 	}
 }
 
@@ -340,4 +348,22 @@ func (ol *OrderList) GetRowAndAheadVolume(id uint64) (uint64, uint64) {
 	}
 
 	return row, volume
+}
+
+
+func (ol *OrderList) updateFlagsAfterOrderAdd()  {
+	for order := range *ol.newOrdersFlagUpdaterChannel {
+		// update lowest/highest prices
+		if order.Price < ol.flags.lowestPrice || ol.flags.lowestPrice == 0 {
+			ol.flags.lowestPrice = order.Price
+		}
+
+		if order.Price > ol.flags.highestPrice || ol.flags.highestPrice == 0{
+			ol.flags.highestPrice = order.Price
+		}
+	}
+}
+
+func (ol *OrderList) GetLowestAndHighestPrices() (int32, int32){
+	return ol.flags.lowestPrice, ol.flags.highestPrice
 }
