@@ -74,3 +74,4 @@ bidsList.DeleteOrder(orderId)
 - Return callback chan in result of the AddOrder() func
 - Test
 - Implement the GetRowAndAheadVolume() func
+- Implement the setSort() functionality
