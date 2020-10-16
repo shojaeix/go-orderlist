@@ -8,7 +8,6 @@ import (
 
 const listsIncrementStep = 10000
 
-
 type OrderList struct {
 	positiveList                *[]*[]Order
 	negativeList                *[]*[]Order
@@ -21,12 +20,12 @@ type OrderList struct {
 	ordersById                  []*Order
 	ordersLastId                uint64
 	running                     bool
-	flags						orderListFlags
+	flags                       orderListFlags
 }
 
 type orderListFlags struct {
-	lowestPrice 		int32
-	highestPrice		int32
+	lowestPrice  int32
+	highestPrice int32
 }
 
 func (ol *OrderList) run() {
@@ -350,20 +349,19 @@ func (ol *OrderList) GetRowAndAheadVolume(id uint64) (uint64, uint64) {
 	return row, volume
 }
 
-
-func (ol *OrderList) updateFlagsAfterOrderAdd()  {
+func (ol *OrderList) updateFlagsAfterOrderAdd() {
 	for order := range *ol.newOrdersFlagUpdaterChannel {
 		// update lowest/highest prices
 		if order.Price < ol.flags.lowestPrice || ol.flags.lowestPrice == 0 {
 			ol.flags.lowestPrice = order.Price
 		}
 
-		if order.Price > ol.flags.highestPrice || ol.flags.highestPrice == 0{
+		if order.Price > ol.flags.highestPrice || ol.flags.highestPrice == 0 {
 			ol.flags.highestPrice = order.Price
 		}
 	}
 }
 
-func (ol *OrderList) GetLowestAndHighestPrices() (int32, int32){
+func (ol *OrderList) GetLowestAndHighestPrices() (int32, int32) {
 	return ol.flags.lowestPrice, ol.flags.highestPrice
 }
