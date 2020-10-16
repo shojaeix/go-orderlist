@@ -1,9 +1,6 @@
 package olist
 
 type OrderNotFoundError struct {
-	Message string
+	error
 }
 
-func (err *OrderNotFoundError) Error() string {
-	return err.Message
-}
