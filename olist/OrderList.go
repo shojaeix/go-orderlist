@@ -20,6 +20,7 @@ type OrderList struct {
 	ordersById                  []*Order
 	ordersLastId                uint64
 	running                     bool
+	sortDescending              bool
 	flags                       orderListFlags
 }
 
@@ -364,4 +365,67 @@ func (ol *OrderList) updateFlagsAfterOrderAdd() {
 
 func (ol *OrderList) GetLowestAndHighestPrices() (int32, int32) {
 	return ol.flags.lowestPrice, ol.flags.highestPrice
+}
+
+func (ol *OrderList) GetEdgeOrder() (order Order, err error) {
+	lowestPrice, highestPrice := ol.GetLowestAndHighestPrices()
+	var index int32
+	if ol.sortDescending {
+		// get first order with highest price
+		index = lowestPrice - ol.indexDispute
+	} else {
+		// get first order with lowest price
+		index = highestPrice - ol.indexDispute
+
+	}
+	println("Index: ", index)
+	orderArr, err := ol.getPriceOrdersArr(index)
+	if err == nil {
+		for _, order := range *orderArr {
+			if order.id > 0 {
+				return order, nil
+			}
+		}
+	} else {
+		if errors.Is(err, &OrderArrayNotFoundError{}){
+			println("OrderArrayNotFound")
+		} else if errors.Is(err, &IndexNotFoundError{}){
+			println("IndexNotFoundError")
+		} else {
+			println("Unknown error", err.Error())
+		}
+	}
+
+	return Order{}, OrderNotFoundError{}
+}
+
+func (ol *OrderList) getPriceOrdersArr(index int32) (*[]Order, error) {
+	if index >= 0 {
+		if index <= ol.greatestIndex {
+			if (*ol.positiveList)[index] != nil {
+				return (*ol.positiveList)[index], nil
+			} else {
+				return &([]Order{}), OrderArrayNotFoundError{}
+			}
+		} else {
+
+			return &([]Order{}), IndexNotFoundError{}
+		}
+	} else {
+		absoluteIndexMinesOne := (-index) - 1
+
+		if absoluteIndexMinesOne <= ol.smallestIndex {
+			if (*ol.negativeList)[absoluteIndexMinesOne] != nil{
+				return (*ol.negativeList)[absoluteIndexMinesOne], nil
+			}
+			return &([]Order{}), OrderArrayNotFoundError{}
+		} else {
+			return &([]Order{}), IndexNotFoundError{}
+		}
+	}
+}
+
+
+func (ol *OrderList) SetSort(sort string){
+	if sort == "" {}
 }
