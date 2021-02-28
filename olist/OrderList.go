@@ -2,7 +2,9 @@ package olist
 
 import (
 	"errors"
-	"fmt"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+	"sync"
 	"unsafe"
 )
 
@@ -50,6 +52,7 @@ func (ol *OrderList) processNewOrders() {
 		ol.pushOrderToArray(order)
 		*ol.newOrdersFlagUpdaterChannel <- order
 	}
+
 }
 
 // Add an order to list and associate an unique uint ID
@@ -82,15 +85,20 @@ func (ol *OrderList) validateOrderValues(order *Order) bool {
 
 func (ol *OrderList) associateIdToOrder(order *Order) {
 	// associate an ID  to order
+	lock := sync.Mutex{}
+	lock.Lock()
 	ol.ordersById = append(ol.ordersById, order)
+
 	ol.ordersLastId++
+
 	order.id = ol.ordersLastId
+	lock.Unlock()
 }
 
 func (ol *OrderList) initiate() {
 
 	// make new orders channel
-	newOrdersChannel := make(chan *Order, 10000)
+	newOrdersChannel := make(chan *Order, 1000000)
 	ol.newOrdersChannel = &newOrdersChannel
 
 	// make new orders' flags channel
@@ -208,8 +216,9 @@ func (ol *OrderList) DeleteOrder(id uint64) bool {
 }
 
 func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
+	printer := message.NewPrinter(language.English)
 
-	fmt.Printf("Ids length: %d, capacity: %d, size: %d\n", len(ol.ordersById), cap(ol.ordersById), unsafe.Sizeof(ol.ordersById))
+	printer.Printf("\tIDs list length: %d, IDs list current current capacity: %d\n", len(ol.ordersById), cap(ol.ordersById))
 
 	totalCap := 0
 
@@ -222,7 +231,7 @@ func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
 		for i := len(*ol.positiveList) - 1; i >= 0; i-- {
 			orderArr = (*ol.positiveList)[i]
 			if printOrders || printIndices {
-				fmt.Printf("Index: %d, The price: %d\n", i, int64(i)+int64(ol.indexDispute))
+				printer.Printf("\tIndex: %d, The price: %d\n", i, int64(i)+int64(ol.indexDispute))
 			}
 			if orderArr != nil {
 				lenLvl2 += len(*orderArr)
@@ -230,14 +239,14 @@ func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
 				if printOrders {
 					for _, orderPointer := range *orderArr {
 						if orderPointer.id != 0 {
-							fmt.Printf("Order details: Id: %d, price: %d, volume: %d \n", orderPointer.id, orderPointer.Price, orderPointer.Volume)
+							printer.Printf("\tOrder details: Id: %d, price: %d, volume: %d \n", orderPointer.id, orderPointer.Price, orderPointer.Volume)
 						}
 					}
 				}
 			}
 		}
 		sizeLvl2 += (unsafe.Sizeof([61440000]Order{})) / 1024 / 1024
-		fmt.Printf("Positive Length: %d, Capacity %d Length lvl 2: %d Capacity lvl 2: %d, size: %d\n", len(*ol.positiveList), cap(*ol.positiveList), lenLvl2, capLvl2, sizeLvl2)
+		printer.Printf("\tPositive Length: %d, Capacity %d Length lvl 2: %d Capacity lvl 2: %d, size: %d\n", len(*ol.positiveList), cap(*ol.positiveList), lenLvl2, capLvl2, sizeLvl2)
 		totalCap += capLvl2
 	}
 
@@ -252,7 +261,7 @@ func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
 		for key, orderArr = range *ol.negativeList {
 			index = int64(key)
 			if printOrders || printIndices {
-				fmt.Printf("Index: %d, The price: %d\n", index, (index)+int64(ol.indexDispute)-1)
+				printer.Printf("\tIndex: %d, The price: %d\n", index, (index)+int64(ol.indexDispute)-1)
 			}
 			if orderArr != nil {
 				lenLvl2 += len(*orderArr)
@@ -260,17 +269,18 @@ func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
 				if printOrders {
 					for _, orderPointer := range *orderArr {
 						if orderPointer.id != 0 {
-							fmt.Printf("Negative Order details: Id: %d, price: %d, volume: %d \n", orderPointer.id, orderPointer.Price, orderPointer.Volume)
+							printer.Printf("\tNegative Order details: Id: %d, price: %d, volume: %d \n", orderPointer.id, orderPointer.Price, orderPointer.Volume)
 						}
 					}
 				}
 			}
 		}
 
-		fmt.Printf("Negative Length: %d, Capacity %d  Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.negativeList), cap(*ol.negativeList), lenLvl2, capLvl2)
+		printer.Printf("\tNegative Length: %d, Capacity %d  Length lvl 2: %d Capacity lvl 2: %d\n", len(*ol.negativeList), cap(*ol.negativeList), lenLvl2, capLvl2)
 		totalCap += capLvl2
 	}
-	println("Total cap: ", totalCap)
+
+	_, _ = printer.Printf("\tTotal size of underlying arrays : %d\n", totalCap)
 }
 
 func (ol *OrderList) GetRowAndAheadVolume(id uint64) (uint64, uint64) {
