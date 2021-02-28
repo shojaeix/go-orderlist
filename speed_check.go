@@ -132,7 +132,7 @@ func add_samples_and_show_performance_details() {
 	printer.Println("\tExact average time:", tookedTime/totalSamples, "nanoseconds per each Order")
 
 	printer.Println("\nOrder book memory usage:")
-	printer.Printf("\tUsed %d byte for each order. Total used memory: %d(%dmb) \n", (getUsedMemoryByByte()-baseMem)/castedCount, (getUsedMemoryByByte() - baseMem), bToMb((getUsedMemoryByByte() - baseMem)))
+	printer.Printf("\tUsed %d byte for each order. \n\tTotal used memory: %d(%dmb) \n", (getUsedMemoryByByte()-baseMem)/castedCount, (getUsedMemoryByByte() - baseMem), bToMb((getUsedMemoryByByte() - baseMem)))
 
 	printer.Println("\nData:")
 	bidsList.PrintAll(false, false)

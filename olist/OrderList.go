@@ -280,7 +280,7 @@ func (ol *OrderList) PrintAll(printOrders bool, printIndices bool) {
 		totalCap += capLvl2
 	}
 
-	_, _ = printer.Printf("\tTotal size of underlying arrays : %d\n", totalCap)
+	_, _ = printer.Printf("\n\tTotal size of underlying arrays : %d\n", totalCap)
 }
 
 func (ol *OrderList) GetRowAndAheadVolume(id uint64) (uint64, uint64) {
